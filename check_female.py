@@ -108,7 +108,7 @@ def main():
         sys.exit(1)
 
     sold = counts[TICKET_NAME]
-    registered = sum(counts.get(t, 0) for t in COUNT_TICKETS)
+    registered = sum(counts.values())
 
     if s.get("err_alerted"):
         notify("✅ Veda bot wapas chalu", f"Female sold: {sold:,}", "default", "white_check_mark")
