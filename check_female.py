@@ -11,11 +11,12 @@ TOKEN = os.environ["VEDA_TOKEN"]
 CF = os.environ.get("VEDA_CF", "")
 NTFY = os.environ["NTFY_URL"]
 STATE = "veda_state.json"
+STATUS = "status.json"
 IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def _hdr(s):
-    # HTTP headers sirf latin-1 lete hain; emoji/dash ho toh RFC 2047 me encode karo (ntfy support karta hai)
+    # HTTP headers sirf latin-1 lete hain; emoji/dash ho toh RFC 2047 me encode karo
     try:
         s.encode("latin-1")
         return s
@@ -37,6 +38,15 @@ def load():
 
 def save(s):
     json.dump(s, open(STATE, "w"), indent=2)
+
+
+def close_website():
+    try:
+        st = json.load(open(STATUS))
+    except Exception:
+        st = {"message": "Girls Registrations Closed — Thank you for the overwhelming response!"}
+    st["girls_open"] = False
+    json.dump(st, open(STATUS, "w"), indent=2, ensure_ascii=False)
 
 
 def find(obj, key):
@@ -87,7 +97,8 @@ def main():
     except Exception as e:
         print("ERROR:", e)
         if not s.get("err_alerted"):
-            notify("⚠️ Veda bot ERROR", f"Count nahi mila: {e}\n\nToken expire hua? VEDA_TOKEN secret update karo.",
+            notify("⚠️ Veda bot ERROR",
+                   f"Count nahi mila: {e}\n\nToken expire hua? VEDA_TOKEN secret update karo.",
                    "high", "warning")
             s["err_alerted"] = True
             save(s)
@@ -115,8 +126,9 @@ def main():
     if crossed:
         top = max(crossed)
         if top >= LIMIT:
+            close_website()
             notify("🚨 22,000 HO GAYE — ABHI BAND KARO",
-                   f"Female sold: {sold:,}\n\n1) Website pe Girls → Registration Closed\n2) Veda me Female ticket OFF",
+                   f"Female sold: {sold:,}\n\nWebsite auto-closed ho gayi (status.json).\nAb Veda me Female ticket OFF karo!",
                    "urgent", "rotating_light")
         else:
             notify(f"Female {sold:,} — sirf {left} bache",

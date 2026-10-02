@@ -36,11 +36,10 @@ jobs:
         run: |
           git config user.name "veda-bot"
           git config user.email "veda-bot@users.noreply.github.com"
-          if [ -f veda_state.json ]; then
-            git add veda_state.json
-            if ! git diff --cached --quiet; then
-              git commit -m "state: $(date -u +%H:%M) [skip ci]"
-              git pull --rebase
-              git push
-            fi
+          [ -f veda_state.json ] && git add veda_state.json
+          [ -f status.json ] && git add status.json
+          if ! git diff --cached --quiet; then
+            git commit -m "state: $(date -u +%H:%M) [skip ci]"
+            git pull --rebase
+            git push
           fi
