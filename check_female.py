@@ -4,10 +4,9 @@ from datetime import datetime, timezone, timedelta
 EVENT = "a36311c9-758f-482d-9c97-8d327a396c16"
 URL = f"https://app.vedaevents.ai/api/v1/events/{EVENT}/dashboard?section=transactions&days=30"
 TICKET_NAME = "Female Player Registration"
-COUNT_TICKETS = ["Male Player Registration", "Female Player Registration"]  # website footer count
 LIMIT = 22000
 THRESHOLDS = [21700, 21900, 21950, 21980, 22000]
-SUMMARY_EVERY_MIN = 60   # har itne min me silent count update (0 = band)
+SUMMARY_EVERY_MIN = 60   # silent count update interval in minutes (0 = off)
 
 TOKEN = os.environ["VEDA_TOKEN"]
 CF = os.environ.get("VEDA_CF", "")
@@ -84,10 +83,10 @@ def fetch_counts():
     r.raise_for_status()
     rows = find(r.json(), "ticketWiseRegistration")
     if not rows:
-        raise RuntimeError("ticketWiseRegistration response me nahi mila")
+        raise RuntimeError("ticketWiseRegistration not found in response")
     counts = {row.get("ticket_name"): int(row.get("sold") or 0) for row in rows}
     if TICKET_NAME not in counts:
-        raise RuntimeError(f"'{TICKET_NAME}' row nahi mili")
+        raise RuntimeError(f"'{TICKET_NAME}' row not found")
     return counts
 
 
@@ -100,8 +99,8 @@ def main():
     except Exception as e:
         print("ERROR:", e)
         if not s.get("err_alerted"):
-            notify("⚠️ Veda bot ERROR",
-                   f"Count nahi mila: {e}\n\nToken expire hua? VEDA_TOKEN secret update karo.",
+            notify("⚠️ Veda Bot Error",
+                   f"Could not fetch registration count.\nError: {e}\n\nToken may have expired — update the VEDA_TOKEN secret.",
                    "high", "warning")
             s["err_alerted"] = True
             save(s)
@@ -111,7 +110,7 @@ def main():
     registered = sum(counts.values())
 
     if s.get("err_alerted"):
-        notify("✅ Veda bot wapas chalu", f"Female sold: {sold:,}", "default", "white_check_mark")
+        notify("✅ Veda Bot Back Online", f"Female registrations: {sold:,}", "default", "white_check_mark")
         s["err_alerted"] = False
 
     # speed estimate (last ~60 min)
@@ -123,7 +122,7 @@ def main():
         hrs = (now - datetime.fromisoformat(old[0]["t"])).total_seconds() / 3600
         rate = (sold - old[0]["n"]) / hrs if hrs > 0 else 0
         if rate > 0:
-            eta = f"\nSpeed ~{rate:.0f}/hr → 22,000 approx {(LIMIT - sold) / rate:.1f} hr me"
+            eta = f"\nPace: ~{rate:.0f}/hr → 22,000 expected in ~{(LIMIT - sold) / rate:.1f} hrs"
 
     left = LIMIT - sold
     print(f"{now:%d-%m %H:%M} Female sold={sold:,} left={left} registered={registered:,}{eta}")
@@ -136,8 +135,8 @@ def main():
         last = s.get("last_summary")
         due = (not last) or (now - datetime.fromisoformat(last)).total_seconds() >= SUMMARY_EVERY_MIN * 60
         if due:
-            notify(f"Female {sold:,} / 22,000 — {left} bache",
-                   f"Update {now:%d %b %H:%M}\nTotal registered (M+F): {registered:,}{eta}",
+            notify(f"Female: {sold:,} / 22,000 — {left} remaining",
+                   f"Registration update · {now:%d %b, %I:%M %p}\nTotal registrations: {registered:,}{eta}",
                    "min", "bar_chart")
             s["last_summary"] = now.isoformat()
 
@@ -146,12 +145,12 @@ def main():
         top = max(crossed)
         if top >= LIMIT:
             update_status(girls_open=False)
-            notify("🚨 22,000 HO GAYE — ABHI BAND KARO",
-                   f"Female sold: {sold:,}\n\nWebsite auto-closed ho gayi (status.json).\nAb Veda me Female ticket OFF karo!",
+            notify("🚨 22,000 Reached — Close Registration Now",
+                   f"Female registrations: {sold:,}\n\nWebsite Girls registration has been auto-closed.\nAction required: turn OFF the Female ticket in Veda.",
                    "urgent", "rotating_light")
         else:
-            notify(f"Female {sold:,} — sirf {left} bache",
-                   f"Threshold {top:,} cross ho gaya.{eta}\n\nWebsite + Veda band karne ki taiyari rakho.",
+            notify(f"Female: {sold:,} — only {left} remaining",
+                   f"Crossed {top:,} registrations.{eta}\n\nGet ready to close website + Veda ticket.",
                    "high", "warning")
         s["alerted"] = sorted(set(s["alerted"] + crossed))
 
