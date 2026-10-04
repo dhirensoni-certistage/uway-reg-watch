@@ -132,6 +132,6 @@
       "n": 22000
     }
   ],
-  "err_alerted": false,
+  "err_alerted": true,
   "last_summary": "2026-10-04T22:36:28.898498+05:30"
 }
